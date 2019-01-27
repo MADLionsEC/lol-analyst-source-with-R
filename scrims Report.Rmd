@@ -1,7 +1,7 @@
 ---
 title: "Mad Lions EC Colombia - Scrims CS Report"
 author: "Tet"
-date: "20 - 01 - 2018"
+date: "26 - 01 - 2018"
 output:
   pdf_document: default
   word_document: default
@@ -12,7 +12,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Script para obtener los datos deseados
+## Obtención de la información utilizando google docs
 
 ```{r, warning = FALSE, results = 'hide', message = FALSE}
 library(googlesheets)
@@ -37,7 +37,7 @@ gs_ls()
 mh <- gs_url("https://docs.google.com/spreadsheets/d/1WAXDVqF0Bm2QvADV76uPd78n03oLLl_NJVFVfItHKHE/")
 
 # get the raw match_history sheet
-training_history <- gs_read(ss=mh, ws = "match_history", range = "B4:BA9")
+training_history <- gs_read(ss=mh, ws = "match_history", range = "B4:BG10")
 
 #fixing for the lack of last character with an NA
 fix <- training_history[length(training_history)-1]
@@ -72,38 +72,51 @@ names(scrims) = c("date","match_id","lado","server")
 
 #This function extracts the general info of the matches
 #includes: position, currentgold, totalgold, level, xp, minionsKilled, jungleMinionsKilled
-extract_match_data <- function(match_id, server) {
+extract_match_data <- function(match_id, server, request = 1) {
   if (!is.na(match_id)) {
     if (server == "LA1") {
-      fromJSON(paste0(servers[1],by_match,match_id,"?api_key=",key))[[1]][[1]]
+      fromJSON(paste0(servers[1],by_match,match_id,"?api_key=",key))[[1]][[request]]
     } else if (server == "NA1") {
-      fromJSON(paste0(servers[2],by_match,match_id,"?api_key=",key))[[1]][[1]]
+      fromJSON(paste0(servers[2],by_match,match_id,"?api_key=",key))[[1]][[request]]
     }
   } else {
     NA
   }
 }
+```
 
-#filtering games on the blue side and adding general info
+## Requisición de información a la API de Riot
+```{r, warning = FALSE, message = FALSE}
+#filtering games on the blue side and splitting timeline and general info
 blue_side <- scrims %>% filter(lado == "azul")
-blue_side_timeline <-  map2(.x = blue_side$match_id, .y = blue_side$server, .f = extract_match_data) %>% 
-  map(~ .[1:5])
+blue_side_timeline <-  map2(.x = blue_side$match_id, .y = blue_side$server, .f = extract_match_data, request = 1) %>% map(~ .[1:5])
 
-#filtering games on the red side and adding general info
+blue_side_general <- map2(.x = blue_side$match_id, .y = blue_side$server, .f = extract_match_data, request = 2)
+#filtering games on the red side and splitting timeline and general info
 red_side <- scrims %>% filter(lado == "rojo")
-red_side_timeline <-  map2(red_side$match_id, red_side$server, extract_match_data) %>% 
-  map(~ .[6:10])
+red_side_timeline <-  map2(red_side$match_id, red_side$server, extract_match_data, request = 1) %>% map(~ .[6:10])
+
+red_side_general <- map2(.x = red_side$match_id, .y = red_side$server, .f = extract_match_data, request = 2)
 
 #mixing all the games regardless of the participant id, all these are our games
 our_timeline <- purrr::flatten(list(blue_side_timeline, red_side_timeline))
 names(our_timeline) <- paste("game",1:length(our_timeline))
 
+our_games <- purrr::flatten(list(blue_side_general, red_side_general))
+names(our_games) <- paste("game",1:length(our_games))
 
 #Flattened the positions data frame inside each game
 for (i in seq_along(our_timeline)) {
   our_timeline[[i]] <- our_timeline[[i]]  %>%  map(jsonlite::flatten)
 }
 
+for (i in seq_along(our_games)) {
+  our_games[[i]] <- our_games[[i]]  %>%  map(jsonlite::flatten)
+}
+```
+
+## Limpieza de información para el `timeline`
+```{r, warning = FALSE, message = FALSE}
 #This function selects only the useful information for the given player
 info_selector <- function(filtered_games, player_number) {
   map(filtered_games,player_number) %>% 
@@ -111,11 +124,11 @@ info_selector <- function(filtered_games, player_number) {
 }
 
 #These are the matches separated by player with only the useful info selected
-top <- info_selector(our_games, 1)
-jungle <- info_selector(our_games, 2)
-mid <- info_selector(our_games, 3)
-adc <- info_selector(our_games, 4)
-support <- info_selector(our_games, 5)
+top <- info_selector(our_timeline, 1)
+jungle <- info_selector(our_timeline, 2)
+mid <- info_selector(our_timeline, 3)
+adc <- info_selector(our_timeline, 4)
+support <- info_selector(our_timeline, 5)
 
 #A function to get the relevant lane cs for each player
 get_lane_cs <- function(games, player) {
@@ -137,6 +150,12 @@ cs_10 <-  tibble(games = names(top_cs), Sander = map_dbl(top_cs, "min10"),
 
 ```
 
+## Limpieza de información para los datos generales
+```{r, warning = FALSE, message = FALSE}
+
+```
+
+
 ## Gráficas
 
 Cada barra de longitud 1 en `cantidad` representa un juego en el periodo de scrims en el que alcanzó el cs al minuto 10 correspondiente en `CreepScore`. El color de las barras representa los jugadores de interés.
@@ -152,8 +171,9 @@ ggplot(cs_10, aes(cs, fill = player)) +
 
 ## Guardar los scrims de `r mes`
 
-Utilizando el siguiente código se guarda el *timeline* en los scrims del mes `r mes` en formato `JSON`
+Utilizando el siguiente código se guarda el `timeline` y la información general de los scrims del mes `r mes` en formato `JSON`
 
 ```{r}
 toJSON(our_timeline) %>% write("enero_timeline.json")
+toJSON(our_games) %>% write("enero_games.json")
 ```
