@@ -23,8 +23,10 @@ library(jsonlite)
 key <- readLines("API/API key.txt", warn=F)
 servers <- c("https://la1.api.riotgames.com","https://na1.api.riotgames.com")
 names(servers) =c("LAN","NA")
-by_match <- "/lol/match/v4/timelines/by-match/"
+by_timeline <- "/lol/match/v4/timelines/by-match/"
+by_match <- "/lol/match/v4/matches/"
 mes <- "enero"
+Ddragon <- fromJSON("http://ddragon.leagueoflegends.com/cdn/9.1.1/data/en_US/championFull.json")
 ```
 
 ```{r, warning = FALSE, results = 'hide'}
@@ -72,16 +74,31 @@ names(scrims) = c("date","match_id","lado","server")
 
 #This function extracts the general info of the matches
 #includes: position, currentgold, totalgold, level, xp, minionsKilled, jungleMinionsKilled
-extract_match_data <- function(match_id, server, request = 1) {
-  if (!is.na(match_id)) {
+extract_match_data <- function(match_id, server, request = "timeline") {
+  if (request == "timeline") {
+    
+      if (!is.na(match_id)) {
     if (server == "LA1") {
-      fromJSON(paste0(servers[1],by_match,match_id,"?api_key=",key))[[1]][[request]]
+      fromJSON(paste0(servers[1],by_timeline,match_id,"?api_key=",key))[[1]][[1]]
     } else if (server == "NA1") {
-      fromJSON(paste0(servers[2],by_match,match_id,"?api_key=",key))[[1]][[request]]
+      fromJSON(paste0(servers[2],by_timeline,match_id,"?api_key=",key))[[1]][[1]]
     }
   } else {
     NA
   }
+  } else if (request == "general") {
+   
+    if (!is.na(match_id)) {
+    if (server == "LA1") {
+      fromJSON(paste0(servers[1],by_match,match_id,"?api_key=",key))
+    } else if (server == "NA1") {
+      fromJSON(paste0(servers[2],by_match,match_id,"?api_key=",key))
+    }
+  } else {
+    NA
+  } 
+  }
+
 }
 ```
 
@@ -89,14 +106,14 @@ extract_match_data <- function(match_id, server, request = 1) {
 ```{r, warning = FALSE, message = FALSE}
 #filtering games on the blue side and splitting timeline and general info
 blue_side <- scrims %>% filter(lado == "azul")
-blue_side_timeline <-  map2(.x = blue_side$match_id, .y = blue_side$server, .f = extract_match_data, request = 1) %>% map(~ .[1:5])
+blue_side_timeline <-  map2(.x = blue_side$match_id, .y = blue_side$server, .f = extract_match_data, request = "timeline") %>% map(~ .[1:5])
 
-blue_side_general <- map2(.x = blue_side$match_id, .y = blue_side$server, .f = extract_match_data, request = 2)
+blue_side_general <- map2(.x = blue_side$match_id, .y = blue_side$server, .f = extract_match_data, request = "general")
 #filtering games on the red side and splitting timeline and general info
 red_side <- scrims %>% filter(lado == "rojo")
-red_side_timeline <-  map2(red_side$match_id, red_side$server, extract_match_data, request = 1) %>% map(~ .[6:10])
+red_side_timeline <-  map2(red_side$match_id, red_side$server, extract_match_data, request = "timeline") %>% map(~ .[6:10])
 
-red_side_general <- map2(.x = red_side$match_id, .y = red_side$server, .f = extract_match_data, request = 2)
+red_side_general <- map2(.x = red_side$match_id, .y = red_side$server, .f = extract_match_data, request = "general")
 
 #mixing all the games regardless of the participant id, all these are our games
 our_timeline <- purrr::flatten(list(blue_side_timeline, red_side_timeline))
@@ -108,10 +125,6 @@ names(our_games) <- paste("game",1:length(our_games))
 #Flattened the positions data frame inside each game
 for (i in seq_along(our_timeline)) {
   our_timeline[[i]] <- our_timeline[[i]]  %>%  map(jsonlite::flatten)
-}
-
-for (i in seq_along(our_games)) {
-  our_games[[i]] <- our_games[[i]]  %>%  map(jsonlite::flatten)
 }
 ```
 
