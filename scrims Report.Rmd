@@ -27,6 +27,9 @@ by_timeline <- "/lol/match/v4/timelines/by-match/"
 by_match <- "/lol/match/v4/matches/"
 mes <- "enero"
 Ddragon <- fromJSON("http://ddragon.leagueoflegends.com/cdn/9.1.1/data/en_US/championFull.json")
+# Use these if using data from previous months
+#our_games <- fromJSON("enero_games.json")
+#our_timeline <- fromJSON("enero_timeline.json")
 ```
 
 ```{r, warning = FALSE, results = 'hide'}
