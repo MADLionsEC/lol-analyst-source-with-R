@@ -1,7 +1,7 @@
 ---
 title: "Mad Lions EC Colombia - Scrims CS Report"
 author: "Tet"
-date: "26 - 01 - 2018"
+date: "15 - 02 - 2018"
 output:
   pdf_document: default
   word_document: default
@@ -25,11 +25,11 @@ servers <- c("https://la1.api.riotgames.com","https://na1.api.riotgames.com")
 names(servers) =c("LAN","NA")
 by_timeline <- "/lol/match/v4/timelines/by-match/"
 by_match <- "/lol/match/v4/matches/"
-mes <- "enero"
+mes <- "febrero"
 Ddragon <- fromJSON("http://ddragon.leagueoflegends.com/cdn/9.1.1/data/en_US/championFull.json")
 # Use these if using data from previous months
-#our_games <- fromJSON("enero_games.json")
-#our_timeline <- fromJSON("enero_timeline.json")
+our_games <- fromJSON("enero_games.json")
+our_timeline <- fromJSON("enero_timeline.json")
 ```
 
 ```{r, warning = FALSE, results = 'hide'}
@@ -42,7 +42,7 @@ gs_ls()
 mh <- gs_url("https://docs.google.com/spreadsheets/d/1WAXDVqF0Bm2QvADV76uPd78n03oLLl_NJVFVfItHKHE/")
 
 # get the raw match_history sheet
-training_history <- gs_read(ss=mh, ws = "match_history", range = "B4:BG10")
+training_history <- gs_read(ss=mh, ws = "match_history", range = "B17:BE23")
 
 #fixing for the lack of last character with an NA
 fix <- training_history[length(training_history)-1]
@@ -76,7 +76,8 @@ scrims <- as.tbl(cbind(historial, lados$lado), stringsAsFactors = FALSE) %>%
 names(scrims) = c("date","match_id","lado","server")
 
 #This function extracts the general info of the matches
-#includes: position, currentgold, totalgold, level, xp, minionsKilled, jungleMinionsKilled
+#Timeline includes position, currentgold, totalgold, level, xp, minionsKilled, jungleMinionsKilled
+#And general includes all the other remaining data that Riot provides from each match
 extract_match_data <- function(match_id, server, request = "timeline") {
   if (request == "timeline") {
     
@@ -163,7 +164,9 @@ adc_cs <- get_lane_cs(our_timeline, 4)
 cs_10 <-  tibble(games = names(top_cs), Sander = map_dbl(top_cs, "min10"), 
                  Hobbler = map_dbl(mid_cs, "min10"), Kindle = map_dbl(adc_cs, "min10")) %>% 
   gather(player, cs, -games)
-
+#A summary tibble for the graph
+stats <- cs_10 %>% group_by(player) %>% 
+  summarize("CS promedio" = mean(cs), "Std Dev" = sd(cs), "Juegos" = n())
 ```
 
 ## Limpieza de información para los datos generales
@@ -178,11 +181,20 @@ Cada barra de longitud 1 en `cantidad` representa un juego en el periodo de scri
 
 ```{r, echo=FALSE, warning = FALSE}
 #cs quantity graph through all the scrims
-ggplot(cs_10, aes(cs, fill = player)) +
+library(grid)
+library(gridExtra)
+#ggplot graph for the bar chart
+plt <- ggplot(cs_10, aes(cs, fill = player)) +
   geom_bar(position = "stack", alpha = 1) +
   scale_fill_brewer(palette = "Set2") + 
-  ggtitle("Distribución de CS@10 en el periodo de scrims") +
+  ggtitle(paste0("Distribución de CS@10 en lo scrims de ", mes)) +
   labs(x = "Creep Score", y = "Cantidad")
+
+#converting the tibble to a Grob object ready to plot
+tbl <- tableGrob(stats)
+
+#plotting the stats and plot together
+grid.arrange(plt, tbl, nrow = 2, as.table=TRUE, heights= c(2,1))
 ```
 
 ## Guardar los scrims de `r mes`
@@ -190,6 +202,6 @@ ggplot(cs_10, aes(cs, fill = player)) +
 Utilizando el siguiente código se guarda el `timeline` y la información general de los scrims del mes `r mes` en formato `JSON`
 
 ```{r}
-toJSON(our_timeline) %>% write("enero_timeline.json")
-toJSON(our_games) %>% write("enero_games.json")
+toJSON(our_timeline) %>% write(paste0(mes, "_timeline.json"))
+toJSON(our_games) %>% write(paste0(mes, "_games.json"))
 ```
