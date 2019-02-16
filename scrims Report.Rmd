@@ -166,7 +166,7 @@ cs_10 <-  tibble(games = names(top_cs), Sander = map_dbl(top_cs, "min10"),
   gather(player, cs, -games)
 #A summary tibble for the graph
 stats <- cs_10 %>% group_by(player) %>% 
-  summarize("CS promedio" = mean(cs), "Std Dev" = sd(cs), "Juegos" = n())
+  summarize("CS promedio" = mean(cs, na.rm = TRUE), "Std Dev" = sd(cs, na.rm = TRUE), "Juegos" = n())
 ```
 
 ## Limpieza de información para los datos generales
