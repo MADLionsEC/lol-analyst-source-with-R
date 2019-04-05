@@ -67,10 +67,15 @@ picks_porcentaje <- left_join(picks, porcentajes, by = c("linea", "campeon"))
 ## Construyendo la gráfica de selecciones del scrim
 
 ```{r}
+#Facet levels
+linea_labels <- c("Top - Sander", "Jungle - Julaxe", "Mid - Hobbler", "Adc - Chomi", "Support - Suppa")  
+names(linea_labels) = c("top", "jg","mid","adc","sup")
+
+#Gráfica
 picks_porcentaje %>% ggplot(aes(x = campeon, fill = resultado)) +
   geom_bar(stat = "count", width = 0.5) +
   scale_fill_hue(direction = -1, h.start= 150) +
-  facet_wrap(~linea, scales = "free_x", nrow = 1, ncol = 5) +
+  facet_wrap(~linea, scales = "free_x", nrow = 1, ncol = 5, labeller =  labeller(linea = linea_labels)) +
   theme_bw() +
   theme(legend.position = "right", axis.text.x = element_text(angle = 45, hjust = 0.8)) +
   labs(title = "Campeones practicados en el parche 9.6 en scrims", y = "Cantidad de juegos", x = "Campeones", fill = "Resultado")
