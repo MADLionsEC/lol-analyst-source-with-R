@@ -24,7 +24,7 @@ library(googlesheets4)
 ```{r}
 drive_auth(oauth_token = "token.rds")
 picks_raw <- drive_get(id ="1WAXDVqF0Bm2QvADV76uPd78n03oLLl_NJVFVfItHKHE") %>% 
-  read_sheet(range = "drafts!A45:O994") %>%
+  read_sheet(range = "drafts!A45:Q994") %>%
   mutate(e_sup = as.character(e_sup)) %>% 
   filter(!is.na(fecha))
 ```
@@ -82,7 +82,7 @@ picks_porcentaje %>% ggplot(aes(x = campeon, fill = resultado)) +
 ```
 
 ## Gráfica experimental con porcentajes de victoria (No completado todavía)
-```{r}
+```{r eval = FALSE}
 #grafica
 picks_porcentaje %>% ggplot(aes(x = campeon, fill = resultado)) +
   geom_bar(stat = "count", width = 0.5) +
